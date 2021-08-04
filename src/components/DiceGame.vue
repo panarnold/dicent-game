@@ -32,6 +32,7 @@ export default defineComponent({
   props: {},
   setup() {
     // const currentDice = ref<number>(1);
+    // const previousDice = ref<number>(1);
     // const currentBet = ref<string>();
     const counter = ref<number>(0);
     const history = ref<Array<roundHistory>>([]);
@@ -39,7 +40,7 @@ export default defineComponent({
     const currentScore = ref(0);
 
     const previousDice = computed(() => {
-      return diceHistory.value.length === 0
+      return diceHistory.value.length === (0 || 1)
         ? 1
         : diceHistory.value[diceHistory.value.length - 2];
     });
@@ -55,39 +56,23 @@ export default defineComponent({
       playerScore: string;
     };
 
-    function throwAgain(): void {
-      fetch("http://roll.diceapi.com/json/d6")
-        .then((response) => response.json())
-        .then((data) => {
-          // currentDice.value = data.dice[0].value;
-          diceHistory.value = [...diceHistory.value, data.dice[0].value];
-          // console.log("Wyrzuciłem", currentDice.value);
-        })
-        .catch((error) => {
-          console.log(error);
-        });
+    async function firstThrow() {
+      const result = await throwAgain();
+    }
 
-      // const json = await response.json();
-
-      // return json;
+    function throwAgain(): Promise<number> {
+      return new Promise((resolve) => {
+        fetch("http://roll.diceapi.com/json/d6")
+          .then((response) => response.json())
+          .then((data) => {
+            resolve(data.dice[0].value);
+          });
+      });
     }
 
     onMounted(() => {
-      throwAgain();
+      firstThrow();
     });
-
-    //next: funkcja, która odpowiedniej wartosci currentDice dokłada odpowiedni jpg
-    //next2: licznik rund: przy 30 robi gratulacje
-    //next3: modale: previous/do you want to start again
-    // next4: local storage
-    // next5: styling
-
-    // function throwAgain() {
-    //   fetchData().then((json) => {
-    //     const dice = json.dice[0].value;
-    //     return dice;
-    //   });
-    // }
 
     function createDiceHistory(
       roundNumber: number,
@@ -101,13 +86,17 @@ export default defineComponent({
       };
     }
 
-    function bet(bet: string) {
-      // currentBet.value = "";
+    async function bet(bet: string) {
       counter.value += 1;
 
-      throwAgain();
+      const result = await throwAgain();
+      diceHistory.value = [...diceHistory.value, result];
+      handleBet(bet);
+    }
+    function handleBet(bet: string) {
       console.log("poprzedni:", previousDice.value);
       console.log("obecny:", currentDice.value);
+
       // console.log(currentDice.value, lastDice.value);
 
       switch (bet) {
