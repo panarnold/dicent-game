@@ -1,9 +1,12 @@
 <template>
   <div id="nav">
     <router-link to="/">Gra</router-link> |
-    <router-link to="/about">Tabela wyników</router-link>
+    <router-link to="/about">Instrukcja</router-link>
   </div>
-  <router-view />
+
+  <keep-alive>
+    <router-view> </router-view>
+  </keep-alive>
 </template>
 
 <style>

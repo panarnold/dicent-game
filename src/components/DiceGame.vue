@@ -1,63 +1,109 @@
 <template>
   <div class="game-frame">
-    <div class="live-dice-frame">
+    <div class="dice">
       <!-- <div class="dice-itself">{{ currentDice }}</div> -->
+
       <div class="dice-itself">
         <img
           :src="require(`../assets/dices/${currentDice}.png`)"
           alt=""
-          class="dice"
+          v-if="started"
+          style="height: 100%; width: 100%; object-fit: contain"
+        />
+        <img
+          :src="require('../assets/readdy.png')"
+          alt=""
+          style="
+            height: 100%;
+            width: 100%;
+            object-fit: contain;
+            transform: translateY(20%);
+          "
+          v-else
         />
       </div>
+    </div>
 
+    <div class="score">
       <div class="buttons">
-        <button class="lower-bet-button" @click="bet('lower')">
-          bet lower
-        </button>
-        <button class="higher-bet-button" @click="bet('higher')">
-          bet higher
-        </button>
+        <div class="bet-buttons">
+          <button
+            class="lower-bet-button"
+            @click="bet('lower')"
+            :disabled="!started"
+          >
+            bet lower
+          </button>
+          <button
+            class="higher-bet-button"
+            @click="bet('higher')"
+            :disabled="!started"
+          >
+            bet higher
+          </button>
+        </div>
+        <div class="start-button">
+          <button class="start-button" @click="start()">{{ startText }}</button>
+        </div>
       </div>
-      <div class="score">Current score: {{ currentScore.toFixed(1) }}</div>
+      <div class="score">Current score: {{ currentScore / 100 }}</div>
+      <div class="counter">round {{ counter }} of {{ roundLimit }}</div>
     </div>
   </div>
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, ref, Ref } from "vue";
-import { cloneDeep } from "lodash";
+import { computed, defineComponent, onMounted, ref } from "vue";
+import { roundHistory } from "@/mixins/types";
 
 export default defineComponent({
   name: "game",
-  props: {},
-  setup() {
-    // const currentDice = ref<number>(1);
-    // const previousDice = ref<number>(1);
-    // const currentBet = ref<string>();
+  props: {
+    roundLimit: {
+      type: Number,
+      default: 30,
+    },
+  },
+  emits: ["current-round-score"],
+  setup(props, { emit }) {
+    const initialDice = ref<number>(1);
     const counter = ref<number>(0);
     const history = ref<Array<roundHistory>>([]);
     const diceHistory = ref<Array<number>>([]);
+    const succesOrFailure = ref<string>("failure");
+    const roundScore = ref<number>(0);
     const currentScore = ref(0);
+    const started = ref<boolean>(false);
+    const startText = ref<string>("start game");
 
     const previousDice = computed(() => {
       return diceHistory.value.length === (0 || 1)
-        ? 1
+        ? initialDice.value
         : diceHistory.value[diceHistory.value.length - 2];
     });
     const currentDice = computed(() => {
       return diceHistory.value.length === 0
-        ? 1
+        ? initialDice.value
         : diceHistory.value[diceHistory.value.length - 1];
     });
 
-    type roundHistory = {
-      roundNumber: number;
-      playerBet: string;
-      playerScore: string;
-    };
+    onMounted(() => {
+      checkIfLocalStorage();
+    });
 
-    async function firstThrow() {
-      const result = await throwAgain();
+    function checkIfLocalStorage() {
+      if (localStorage.length > 0) {
+        localStorage.getItem("storedData");
+      }
+    }
+
+    async function start() {
+      setTimeout(async () => {
+        started.value = !started.value;
+        startText.value = "restart";
+      }, 600);
+
+      initialDice.value = await throwAgain();
     }
 
     function throwAgain(): Promise<number> {
@@ -70,24 +116,25 @@ export default defineComponent({
       });
     }
 
-    onMounted(() => {
-      firstThrow();
-    });
-
     function createDiceHistory(
       roundNumber: number,
       playerBet: string,
+      success: string,
+      roundScore: number,
       playerScore: number
     ): roundHistory {
       return {
         roundNumber: roundNumber,
+        dice: currentDice.value,
+        success: success,
         playerBet: playerBet,
-        playerScore: playerScore.toFixed(1),
+        roundScore: roundScore,
+        playerScore: playerScore,
       };
     }
 
     async function bet(bet: string) {
-      counter.value += 1;
+      checkCounter(props.roundLimit);
 
       const result = await throwAgain();
       diceHistory.value = [...diceHistory.value, result];
@@ -96,48 +143,51 @@ export default defineComponent({
     function handleBet(bet: string) {
       console.log("poprzedni:", previousDice.value);
       console.log("obecny:", currentDice.value);
-
-      // console.log(currentDice.value, lastDice.value);
-
+      roundScore.value = 0;
       switch (bet) {
         case "lower":
-          // currentBet.value = "lower";
           if (previousDice.value > currentDice.value) {
-            currentScore.value += 0.1;
+            roundScore.value = 10;
           }
 
           break;
         case "higher":
-          // currentBet.value = "higher";
           if (previousDice.value < currentDice.value) {
-            currentScore.value += 0.1;
+            roundScore.value = 10;
           }
           break;
       }
+      currentScore.value += roundScore.value;
+
       const round: roundHistory = createDiceHistory(
         counter.value,
         bet,
+        succesOrFailure.value,
+        roundScore.value,
         currentScore.value
       );
       history.value = [...history.value, round];
-      // currentBet.value = "";
+      emit("current-round-score", round);
     }
     function checkCounter(limit: number) {
-      if (counter.value === limit) {
-        console.log(
-          "gratulacje, zacznij nową grę, twoje wyniki to:",
-          history.value
-        );
+      counter.value += 1;
+      if (counter.value === limit + 1) {
+        alert(`gratuluje, twoj wynik to ${currentScore.value}`);
         counter.value = 1;
       }
     }
 
     return {
+      start,
+      startText,
+      started,
       bet,
       previousDice,
+      succesOrFailure,
       currentDice,
       throwAgain,
       currentScore,
+      roundScore,
       history,
       counter,
       diceHistory,
@@ -149,20 +199,9 @@ export default defineComponent({
 <style scoped lang="scss">
 .game-frame {
   display: grid;
-  grid-auto-flow: column;
-  height: 20rem;
-  width: 20rem;
-  .live-dice-frame {
-    .dice-itself {
-      .dice {
-        height: 100%;
-        width: 100%;
-        object-fit: cover;
-      }
-    }
-  }
+  grid-auto-flow: row;
+  grid-gap: 3rem;
+  height: 30rem;
+  width: 25rem;
 }
 </style>
-
-function cloneDeep(value: number): number { throw new Error("Function not
-implemented."); }
