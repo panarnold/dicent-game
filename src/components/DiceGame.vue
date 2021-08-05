@@ -43,7 +43,9 @@
           </button>
         </div>
         <div class="start-button">
-          <button class="start-button" @click="start()">{{ startText }}</button>
+          <button class="start-button" @click="start()">
+            {{ startText }}
+          </button>
         </div>
       </div>
       <div class="score">Current score: {{ currentScore / 100 }}</div>
@@ -62,6 +64,10 @@ export default defineComponent({
     roundLimit: {
       type: Number,
       default: 30,
+    },
+    cowhistory: {
+      type: Array as () => Array<roundHistory>,
+      default: () => [],
     },
   },
   emits: ["current-round-score"],
@@ -198,10 +204,31 @@ export default defineComponent({
 
 <style scoped lang="scss">
 .game-frame {
+  margin-left: 10rem;
   display: grid;
   grid-auto-flow: row;
   grid-gap: 3rem;
   height: 30rem;
   width: 25rem;
+
+  .score {
+    display: grid;
+    grid-gap: 1rem;
+    .buttons {
+      display: grid;
+      grid-gap: 1rem;
+      .bet-buttons {
+        display: grid;
+        grid-auto-flow: column;
+        grid-gap: 1rem;
+        .higher-bet-button {
+          color: red;
+        }
+        .lower-bet-button {
+          color: green;
+        }
+      }
+    }
+  }
 }
 </style>

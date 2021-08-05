@@ -4,9 +4,11 @@
     <router-link to="/about">Instrukcja</router-link>
   </div>
 
-  <keep-alive>
-    <router-view> </router-view>
-  </keep-alive>
+  <router-view v-slot="{ Component }">
+    <keep-alive>
+      <component :is="Component" />
+    </keep-alive>
+  </router-view>
 </template>
 
 <style>

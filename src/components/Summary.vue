@@ -48,6 +48,7 @@ export default defineComponent({
 
 <style scoped lang="scss">
 .table {
+  margin-top: 10vh;
   display: grid;
   grid-template-rows: 3rem 1fr;
   grid-gap: none;
