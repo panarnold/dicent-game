@@ -5,9 +5,13 @@
 
       <div class="dice-itself">
         <img
-          :src="require(`../assets/dices/${currentDice}.png`)"
+          :src="
+            require(`../assets/dices/${
+              throwHistory[throwHistory.length - 1]
+            }.png`)
+          "
           alt=""
-          v-if="started"
+          v-if="showDice"
           style="height: 100%; width: 100%; object-fit: contain"
         />
         <img
@@ -30,26 +34,28 @@
           <button
             class="lower-bet-button"
             @click="bet('lower')"
-            :disabled="!started"
+            :disabled="!showDice"
           >
             bet lower
           </button>
           <button
             class="higher-bet-button"
             @click="bet('higher')"
-            :disabled="!started"
+            :disabled="!showDice"
           >
             bet higher
           </button>
         </div>
         <div class="start-button">
-          <button class="start-button" @click="start()">
+          <button class="start-button" @click="handleClick()">
             {{ startText }}
           </button>
         </div>
       </div>
       <div class="score">Current score: {{ currentScore / 100 }}</div>
-      <div class="counter">round {{ counter }} of {{ roundLimit }}</div>
+      <div class="counter">
+        round {{ currentRoundNumber }} of {{ roundLimit }}
+      </div>
     </div>
   </div>
 </template>
@@ -57,6 +63,7 @@
 <script lang="ts">
 import { computed, defineComponent, onMounted, ref } from "vue";
 import { roundHistory } from "@/mixins/types";
+import { isNil, sumBy } from "lodash";
 
 export default defineComponent({
   name: "game",
@@ -65,51 +72,37 @@ export default defineComponent({
       type: Number,
       default: 30,
     },
-    cowhistory: {
+    history: {
       type: Array as () => Array<roundHistory>,
       default: () => [],
     },
   },
-  emits: ["current-round-score"],
+  emits: ["update:history"],
   setup(props, { emit }) {
-    const initialDice = ref<number>(1);
-    const counter = ref<number>(0);
-    const history = ref<Array<roundHistory>>([]);
-    const diceHistory = ref<Array<number>>([]);
-    const succesOrFailure = ref<string>("failure");
-    const roundScore = ref<number>(0);
-    const currentScore = ref(0);
-    const started = ref<boolean>(false);
-    const startText = ref<string>("start game");
-
-    const previousDice = computed(() => {
-      return diceHistory.value.length === (0 || 1)
-        ? initialDice.value
-        : diceHistory.value[diceHistory.value.length - 2];
+    const allowBet = true;
+    const currentRoundNumber = computed(() => {
+      return props.history.length + 1;
     });
-    const currentDice = computed(() => {
-      return diceHistory.value.length === 0
-        ? initialDice.value
-        : diceHistory.value[diceHistory.value.length - 1];
+    const throwHistory = ref<Array<number>>([]);
+
+    const currentScore = computed(() => {
+      return props.history.length === 0
+        ? 0
+        : props.history[props.history.length - 1].playerScore;
+    });
+    const showDice = ref<boolean>(false);
+    const startText = computed(() => {
+      return showDice.value ? "restart" : "start";
     });
 
-    onMounted(() => {
-      checkIfLocalStorage();
-    });
-
-    function checkIfLocalStorage() {
-      if (localStorage.length > 0) {
-        localStorage.getItem("storedData");
+    async function handleClick() {
+      const result = await throwAgain();
+      throwHistory.value = [result];
+      if (showDice.value) {
+        emit("update:history", []);
+      } else {
+        showDice.value = true;
       }
-    }
-
-    async function start() {
-      setTimeout(async () => {
-        started.value = !started.value;
-        startText.value = "restart";
-      }, 600);
-
-      initialDice.value = await throwAgain();
     }
 
     function throwAgain(): Promise<number> {
@@ -122,81 +115,56 @@ export default defineComponent({
       });
     }
 
-    function createDiceHistory(
-      roundNumber: number,
-      playerBet: string,
-      success: string,
-      roundScore: number,
-      playerScore: number
-    ): roundHistory {
-      return {
-        roundNumber: roundNumber,
-        dice: currentDice.value,
-        success: success,
-        playerBet: playerBet,
-        roundScore: roundScore,
-        playerScore: playerScore,
-      };
-    }
-
     async function bet(bet: string) {
-      checkCounter(props.roundLimit);
-
-      const result = await throwAgain();
-      diceHistory.value = [...diceHistory.value, result];
+      throwHistory.value = [...throwHistory.value, await throwAgain()];
       handleBet(bet);
     }
     function handleBet(bet: string) {
-      console.log("poprzedni:", previousDice.value);
-      console.log("obecny:", currentDice.value);
-      roundScore.value = 0;
+      let roundScore = 0;
       switch (bet) {
         case "lower":
-          if (previousDice.value > currentDice.value) {
-            roundScore.value = 10;
+          if (
+            throwHistory.value[throwHistory.value.length - 2] >
+            throwHistory.value[throwHistory.value.length - 1]
+          ) {
+            roundScore = 10;
           }
 
           break;
         case "higher":
-          if (previousDice.value < currentDice.value) {
-            roundScore.value = 10;
+          if (
+            throwHistory.value[throwHistory.value.length - 2] <
+            throwHistory.value[throwHistory.value.length - 1]
+          ) {
+            roundScore = 10;
           }
           break;
       }
-      currentScore.value += roundScore.value;
 
-      const round: roundHistory = createDiceHistory(
-        counter.value,
-        bet,
-        succesOrFailure.value,
-        roundScore.value,
-        currentScore.value
-      );
-      history.value = [...history.value, round];
-      emit("current-round-score", round);
-    }
-    function checkCounter(limit: number) {
-      counter.value += 1;
-      if (counter.value === limit + 1) {
-        alert(`gratuluje, twoj wynik to ${currentScore.value}`);
-        counter.value = 1;
-      }
+      const newRound: roundHistory = {
+        roundNumber: props.history.length + 1,
+        throwResult: throwHistory.value[throwHistory.value.length - 1],
+        playerBet: bet,
+
+        playerScore:
+          sumBy(props.history, (round): number => round.roundScore) +
+          roundScore,
+        success: roundScore !== 0 ? "success" : "failure",
+        roundScore: roundScore,
+      };
+      emit("update:history", [...props.history, newRound]);
     }
 
     return {
-      start,
+      allowBet,
+      throwHistory,
+      currentRoundNumber,
+      handleClick,
       startText,
-      started,
+      showDice,
       bet,
-      previousDice,
-      succesOrFailure,
-      currentDice,
       throwAgain,
       currentScore,
-      roundScore,
-      history,
-      counter,
-      diceHistory,
     };
   },
 });

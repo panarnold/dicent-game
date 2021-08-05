@@ -1,7 +1,7 @@
 <template>
   <div class="content">
-    <DiceGame @current-round-score="updateScoreList($event)" />
-    <Summary :diceHistory="history" :headers="headers" />
+    <DiceGame @update:history="onUpdateHistory($event)" :history="history" />
+    <Summary :history="history" :headers="headers" />
   </div>
 
   <Modal :visible="showModal" @update:visible="showModal = false">
@@ -29,8 +29,8 @@ export default defineComponent({
   setup() {
     const history = ref<Array<roundHistory>>([]);
     const showModal = ref<boolean>(false);
-    function updateScoreList(round: roundHistory) {
-      history.value = [...history.value, round];
+    function onUpdateHistory(newHistory: Array<roundHistory>) {
+      history.value = newHistory;
       localStorage.setItem("history", JSON.stringify(history.value));
     }
 
@@ -54,7 +54,7 @@ export default defineComponent({
 
     return {
       headers,
-      updateScoreList,
+      onUpdateHistory,
       history,
       manageAnswer,
       showModal,

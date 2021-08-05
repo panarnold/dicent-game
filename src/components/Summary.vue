@@ -6,9 +6,9 @@
       </div>
     </div>
     <div class="summary">
-      <div class="round" v-for="(round, index) in diceHistory" :key="index">
+      <div class="round" v-for="(round, index) in history" :key="index">
         <div>{{ round.roundNumber }}</div>
-        <div>{{ round.dice }}</div>
+        <div>{{ round.throwResult }}</div>
         <div>{{ round.playerBet }}</div>
         <div>{{ round.success }}</div>
         <div>{{ round.roundScore / 100 }}</div>
@@ -28,7 +28,7 @@ import { roundHistory } from "@/mixins/types";
 export default defineComponent({
   name: "Summary",
   props: {
-    diceHistory: {
+    history: {
       type: Array as () => Array<roundHistory>,
       default: () => [],
     },
