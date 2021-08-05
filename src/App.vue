@@ -1,7 +1,7 @@
 <template>
   <div id="nav">
-    <router-link to="/">Gra</router-link> |
-    <router-link to="/about">Instrukcja</router-link>
+    <router-link to="/">game</router-link> |
+    <router-link to="/instructions">instructions</router-link>
   </div>
 
   <router-view v-slot="{ Component }">
@@ -30,6 +30,6 @@
 }
 
 #nav a.router-link-exact-active {
-  color: #42b983;
+  color: salmon;
 }
 </style>

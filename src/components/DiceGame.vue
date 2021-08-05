@@ -1,15 +1,9 @@
 <template>
   <div class="game-frame">
     <div class="dice">
-      <!-- <div class="dice-itself">{{ currentDice }}</div> -->
-
       <div class="dice-itself">
         <img
-          :src="
-            require(`../assets/dices/${
-              throwHistory[throwHistory.length - 1]
-            }.png`)
-          "
+          :src="require(`../assets/dices/${currentDice}.png`)"
           alt=""
           v-if="showDice"
           style="height: 100%; width: 100%; object-fit: contain"
@@ -34,36 +28,35 @@
           <button
             class="lower-bet-button"
             @click="bet('lower')"
-            :disabled="!showDice"
+            :disabled="!showDice || !allowBet"
           >
             bet lower
           </button>
           <button
             class="higher-bet-button"
             @click="bet('higher')"
-            :disabled="!showDice"
+            :disabled="!showDice || !allowBet"
           >
             bet higher
           </button>
         </div>
-        <div class="start-button">
-          <button class="start-button" @click="handleClick()">
-            {{ startText }}
-          </button>
-        </div>
+
+        <button class="start-button" @click="handleStart()">
+          {{ startText }}
+        </button>
       </div>
-      <div class="score">Current score: {{ currentScore / 100 }}</div>
+      <div class="score">Total score: {{ currentScore / 100 }}</div>
       <div class="counter">
-        round {{ currentRoundNumber }} of {{ roundLimit }}
+        {{ roundInfoText }}
       </div>
     </div>
   </div>
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, ref } from "vue";
+import { computed, defineComponent, onMounted, ref, watch } from "vue";
 import { roundHistory } from "@/mixins/types";
-import { isNil, sumBy } from "lodash";
+import { sumBy, take } from "lodash";
 
 export default defineComponent({
   name: "game",
@@ -76,33 +69,44 @@ export default defineComponent({
       type: Array as () => Array<roundHistory>,
       default: () => [],
     },
+    currentDice: {
+      type: Number,
+      required: true,
+    },
   },
-  emits: ["update:history"],
+  emits: ["update:history", "update:currentDice", "update:endgame"],
   setup(props, { emit }) {
-    const allowBet = true;
-    const currentRoundNumber = computed(() => {
+    const allowBet = computed((): boolean => {
+      return showDice.value && props.history.length < props.roundLimit;
+    });
+    const currentRoundNumber = computed((): number => {
       return props.history.length + 1;
     });
-    const throwHistory = ref<Array<number>>([]);
 
-    const currentScore = computed(() => {
+    const currentScore = computed((): number => {
       return props.history.length === 0
         ? 0
-        : props.history[props.history.length - 1].playerScore;
+        : props.history[props.history.length - 1].totalScore;
     });
-    const showDice = ref<boolean>(false);
-    const startText = computed(() => {
-      return showDice.value ? "restart" : "start";
+    const startText = computed((): string => {
+      return props.currentDice !== 0 ? "restart" : "start";
+    });
+    const showDice = computed((): boolean => {
+      return props.currentDice > 0;
+    });
+    const roundInfoText = computed((): string => {
+      return currentRoundNumber.value <= props.roundLimit
+        ? "Current round: " +
+            currentRoundNumber.value +
+            " of " +
+            props.roundLimit
+        : "END OF GAME";
     });
 
-    async function handleClick() {
-      const result = await throwAgain();
-      throwHistory.value = [result];
-      if (showDice.value) {
-        emit("update:history", []);
-      } else {
-        showDice.value = true;
-      }
+    async function handleStart() {
+      const newCurrentDice = await throwAgain();
+      emit("update:currentDice", newCurrentDice);
+      emit("update:history", []);
     }
 
     function throwAgain(): Promise<number> {
@@ -116,26 +120,17 @@ export default defineComponent({
     }
 
     async function bet(bet: string) {
-      throwHistory.value = [...throwHistory.value, await throwAgain()];
-      handleBet(bet);
-    }
-    function handleBet(bet: string) {
       let roundScore = 0;
+      const throwResult = await throwAgain();
       switch (bet) {
         case "lower":
-          if (
-            throwHistory.value[throwHistory.value.length - 2] >
-            throwHistory.value[throwHistory.value.length - 1]
-          ) {
+          if (throwResult < props.currentDice) {
             roundScore = 10;
           }
 
           break;
         case "higher":
-          if (
-            throwHistory.value[throwHistory.value.length - 2] <
-            throwHistory.value[throwHistory.value.length - 1]
-          ) {
+          if (throwResult > props.currentDice) {
             roundScore = 10;
           }
           break;
@@ -143,28 +138,29 @@ export default defineComponent({
 
       const newRound: roundHistory = {
         roundNumber: props.history.length + 1,
-        throwResult: throwHistory.value[throwHistory.value.length - 1],
+        currentDice: props.currentDice,
+        throwResult: throwResult,
         playerBet: bet,
-
-        playerScore:
+        totalScore:
           sumBy(props.history, (round): number => round.roundScore) +
           roundScore,
         success: roundScore !== 0 ? "success" : "failure",
-        roundScore: roundScore,
+        roundScore,
       };
       emit("update:history", [...props.history, newRound]);
+      emit("update:currentDice", throwResult);
     }
 
     return {
       allowBet,
-      throwHistory,
+      roundInfoText,
       currentRoundNumber,
-      handleClick,
+      handleStart,
       startText,
-      showDice,
       bet,
       throwAgain,
       currentScore,
+      showDice,
     };
   },
 });
@@ -188,7 +184,11 @@ export default defineComponent({
       .bet-buttons {
         display: grid;
         grid-auto-flow: column;
+
         grid-gap: 1rem;
+        & > * {
+          cursor: pointer;
+        }
         .higher-bet-button {
           color: red;
         }
@@ -196,6 +196,9 @@ export default defineComponent({
           color: green;
         }
       }
+    }
+    .start-button {
+      cursor: pointer;
     }
   }
 }

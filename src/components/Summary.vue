@@ -1,23 +1,27 @@
 <template>
-  <div class="table" v-if="visible">
-    <div class="headers">
-      <div class="header" v-for="(header, index) in headers" :key="index">
-        {{ header }}
+  <div class="summary-wrapper">
+    <div id="click-to-info" @click="visible = !visible">
+      <span v-if="!visible">click here to see the history of current game</span>
+      <span v-else>hide it, you mysterious human creature</span>
+    </div>
+    <div class="table" v-if="visible">
+      <div class="headers">
+        <div class="header" v-for="(header, index) in headers" :key="index">
+          {{ header }}
+        </div>
+      </div>
+      <div class="summary">
+        <div class="round" v-for="(round, index) in history" :key="index">
+          <div>{{ round.roundNumber }}</div>
+          <div>{{ round.currentDice }}</div>
+          <div>{{ round.throwResult }}</div>
+          <div>{{ round.playerBet }}</div>
+          <div>{{ round.success }}</div>
+          <div>{{ round.roundScore / 100 }}</div>
+          <div id="total">{{ round.totalScore / 100 }}</div>
+        </div>
       </div>
     </div>
-    <div class="summary">
-      <div class="round" v-for="(round, index) in history" :key="index">
-        <div>{{ round.roundNumber }}</div>
-        <div>{{ round.throwResult }}</div>
-        <div>{{ round.playerBet }}</div>
-        <div>{{ round.success }}</div>
-        <div>{{ round.roundScore / 100 }}</div>
-        <div id="total">{{ round.playerScore / 100 }}</div>
-      </div>
-    </div>
-  </div>
-  <div id="click-to-info" v-else @click="visible = !visible">
-    Click here to show the history of this game
   </div>
 </template>
 
@@ -47,41 +51,49 @@ export default defineComponent({
 </script>
 
 <style scoped lang="scss">
-.table {
-  margin-top: 10vh;
+.summary-wrapper {
   display: grid;
-  grid-template-rows: 3rem 1fr;
-  grid-gap: none;
-
-  .headers {
+  grid-template-rows: 3rem 20rem;
+  width: 40vw;
+  .table {
     display: grid;
-    font-weight: bold;
-    height: 2rem;
-    grid-template-columns: repeat(6, 8rem);
-  }
-  .summary {
-    display: grid;
-    grid-auto-flow: row;
-    align-content: start;
-  }
+    grid-template-rows: 3rem 25rem;
+    grid-gap: none;
 
-  .round {
-    display: grid;
-    height: 2rem;
-    grid-auto-flow: column;
-    grid-template-columns: repeat(6, 8rem);
-    // align-self: baseline;
+    .headers {
+      display: grid;
+      font-weight: bold;
+      height: 2rem;
+      grid-template-columns: repeat(7, 8rem);
+    }
+    .summary {
+      display: grid;
+      grid-auto-flow: row;
+      align-content: start;
+      height: inherit;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
 
-    #total {
-      font-weight: bolder;
-      color: red;
+    .round {
+      display: grid;
+      height: 2rem;
+      grid-auto-flow: column;
+      grid-template-columns: repeat(7, 8rem);
+      #total {
+        font-weight: bolder;
+        color: red;
+      }
     }
   }
-}
-#click-to-info {
-  cursor: pointer;
-  background-color: salmon;
-  width: 48rem;
-  height: 2rem;
+  #click-to-info {
+    cursor: pointer;
+    display: grid;
+    background-color: salmon;
+    font-weight: bolder;
+    align-items: center;
+    width: 56rem;
+    height: 2rem;
+  }
 }
 </style>
